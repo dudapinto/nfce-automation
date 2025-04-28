@@ -14,9 +14,10 @@ O **NFCe Automation Project** é um sistema automatizado para consultar e proces
 
 ---
 
-## Project Structure
-
+## Estrutura do Projeto
 A estrutura de pastas do projeto é a seguinte:
+
+```
 C:.
 └───nfce-automation
     ├───recibos
@@ -26,8 +27,9 @@ C:.
     ├───README.md
     ├───requirements.txt
     └─── (outros arquivos gerados, como logs e backups)
+```    
 
-### Files and Folders
+### Arquivos e Pastas
 - **`nfce-automation/`**: Diretório raiz do projeto.
   - **`recibos/`**: Diretório onde são salvas as imagens de recibos enviadas pelo Telegram.
   - **`telegram_bot.py`**: Script que gerencia o bot no Telegram, processa mensagens de texto (chaves) e imagens (QR codes), e retorna respostas com insights.
@@ -37,7 +39,7 @@ C:.
 
 ---
 
-## Prerequisites
+## Pré-requisitos
 
 Antes de executar o projeto, você precisa dos seguintes pré-requisitos:
 
@@ -67,7 +69,7 @@ As dependências estão listadas no arquivo `requirements.txt`. As principais bi
 
 ---
 
-## Installation
+## Instalação
 
 Siga os passos abaixo para configurar e executar o projeto:
 
@@ -121,7 +123,7 @@ mkdir recibos
 
 ---
 
-## Security Notes
+## Observações de Segurança
 
 Este projeto utiliza arquivos sensíveis que **não devem ser enviados ao repositório público** no GitHub:
 
@@ -146,30 +148,39 @@ Faça um novo commit:
 git commit -m "Remove arquivos sensíveis do controle de versão"
 ```
 
-## Usage
+## Como usar:
 ### 1. Inicie o Bot
 Execute o script telegram_bot.py para iniciar o bot:
 
 ```bash
 python telegram_bot.py
 ```
+
 O bot será iniciado e você verá logs indicando que ele está ativo.
+![image](https://github.com/user-attachments/assets/c7945405-aa7a-416b-ac04-2e02b427d381)
+
+O navegador será carregado e ficará aguardando pela entrada de alguma documento (digitado ou escaneado)
+![image](https://github.com/user-attachments/assets/86dbe6de-5d03-4fb3-9f2c-f0d4532e9103)
+
 
 ### 2. Interaja com o Bot no Telegram
 Abra o Telegram no celular ou no navegador e encontre o seu bot (usando o nome configurado no BotFather).
-Envie uma mensagem com uma chave de 44 dígitos (com ou sem espaços, e com um "s" opcional no início para submeter recibos SAT diretamente). Exemplo:
-s35250427005574000109590013320951455824435644
-ou
-3525 0427 0055 7400 0109 5900 1332 0951 4558 2443 5644
+Envie uma mensagem com uma chave de 44 dígitos (com ou sem espaços, e com um "s" opcional no início para submeter recibos SAT diretamente). 
+Exemplo: s35250427005574000109590013320951455824435644  ou 3525 0427 0055 7400 0109 5900 1332 0951 4558 2443 5644
+![image](https://github.com/user-attachments/assets/9f51b05e-d8a3-4d9c-af7a-2cf3980fadd6)
 
-Alternativamente, envie uma foto de um recibo com QR code visível.
+Alternativamente, envie uma foto de um recibo com QR code visível. (a foto tem que ser boa, bem iluminada, etc)
+Se você receber uma mensagem que o programa não conseguiu processar o QR-Code, digite a linha da chave (44 ou 45 caracteres 
+se você perceber no documento que se trata de um recibo SAT coloque um "s" na frente do código e o programa pulará a consulta NFCe indo direto para SAT)
+
 O bot processará o recibo e responderá com detalhes da compra, incluindo:
 Empresa, data, total, número de itens.
 Insights como valor médio, comparação com compras anteriores e gastos por categoria.
-Durante a consulta, o bot pode solicitar que você resolva um CAPTCHA manualmente no navegador.
+Durante a consulta, o bot pode solicitar que você resolva um CAPTCHA manualmente no navegador na consulta NFCe ou na consulta SAT.
 
-### 3. Verifique a Planilha
+### 3. Verifique a Planilha 
 Os dados processados serão automaticamente salvos na aba "DADOS" da planilha do Google Sheets, com as seguintes colunas:
+```
 Empresa: Nome da empresa emitente.
 CNPJ: CNPJ da empresa.
 Número NFCE: Número do recibo (SAT ou NFCe).
@@ -186,50 +197,65 @@ Data Emissão: Data no formato "M/D/YYYY" (ex.: "4/17/2025").
 Hora Emissão: Hora no formato "HH:MM:SS" (ex.: "12:54:43").
 Dia Semana: Número do dia da semana (0 = Domingo, ..., 6 = Sábado).
 SAT: Indica se é um recibo SAT ("TRUE") ou NFCe ("FALSE").
-
+```
 ## Scripts Overview
 
 ## nfce_automation.py
 Este script é responsável por consultar recibos (NFCe e SAT), extrair dados, e gravar na planilha do Google Sheets.
 
 ### Main Functions:
+```python
 processar_imagem(caminho_imagem=None, chave_manual=None, debug_level=0, from_bot=False):
+```
 Processa uma chave manual ou uma imagem de QR code.
 Identifica se o recibo é SAT (prefixo "s") ou NFCe.
 Consulta o recibo no site apropriado (SAT ou NFCe).
 Extrai dados (empresa, CNPJ, itens, valores, etc.).
 Verifica duplicatas na planilha.
 Grava os dados na aba "DADOS" e registra a chave na aba "chaves44".
+
+```python
 consultar_sat(chave, driver, debug_level):
+```
 Consulta recibos SAT no site do SAT.
 Solicita ao usuário que resolva o CAPTCHA manualmente.
+
+```python
 extrair_numero_nfce(html):
+```
 Extrai o número do recibo NFCe do HTML da página de consulta.
+
+```python
 extrair_itens(html, debug_level):
+```
 Extrai a lista de itens do recibo (descrição, quantidade, valores, etc.).
 
 ### Dependencies:
+```
 Selenium (para automação do navegador).
 BeautifulSoup (para parsing de HTML).
 OpenCV e pyzbar (para leitura de QR codes).
 gspread (para interação com o Google Sheets).
-
+```
 ## telegram_bot.py
 Este script gerencia o bot no Telegram, processando mensagens de texto (chaves) e imagens (QR codes), e retornando respostas com insights.
 
 ### Main Functions:
+```
 handle_text(update, context):
 Processa mensagens de texto contendo chaves de 44 dígitos.
 Valida o formato da chave e chama processar_imagem para consulta.
 Retorna uma mensagem com os detalhes da compra e insights.
+
 handle_photo(update, context):
 Processa imagens enviadas pelo usuário.
 Salva a imagem no diretório recibos/.
 Chama processar_imagem para extrair o QR code e consultar o recibo.
 Retorna uma mensagem com os detalhes da compra e insights.
+
 calcular_insights(empresa, total, itens, is_sat):
 Gera insights sobre a compra, como valor médio, comparação com compras anteriores, e gastos por categoria.
-
+```
 ### Dependencies
 python-telegram-bot (para criar o bot).
 Logging (para logs).
@@ -291,4 +317,4 @@ Crie um Pull Request.
 Este projeto está licenciado sob a MIT License (LICENSE). Veja o arquivo LICENSE para mais detalhes.
 
 ## Contact
-Para dúvidas ou sugestões, abra uma issue:
+Para dúvidas ou sugestões, abra uma issue, ok? ;)
