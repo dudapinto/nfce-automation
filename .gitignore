@@ -1,0 +1,29 @@
+# Arquivos sensíveis
+.env
+credentials.json
+NFCes_backup_*.csv
+debug_*.html
+
+# Diretórios com dados sensíveis
+recibos/
+
+# Arquivos gerados automaticamente
+*.pyc
+__pycache__/
+*.log
+
+# Ambientes virtuais
+venv/
+.env/
+
+# Arquivos temporários
+*.tmp
+*.bak
+
+# Arquivos de configuração do editor
+.vscode/
+.idea/
+
+# Binários
+chromedriver
+chromedriver.exe

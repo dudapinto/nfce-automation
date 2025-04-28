@@ -1,0 +1,8 @@
+selenium
+beautifulsoup4
+gspread
+oauth2client
+pyzbar
+Pillow
+python-dotenv
+python-telegram-bot==20.0
