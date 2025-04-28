@@ -1,9 +1,10 @@
 import os
 import sys
 import telegram
+import argparse  # Adiciona suporte a argumentos de linha de comando
 from telegram.ext import Application, MessageHandler, filters, CommandHandler
 from dotenv import load_dotenv
-from nfce_automation import processar_imagem, limpar_valor, driver
+from nfce_automation import processar_imagem, limpar_valor, driver, IDLE_PAGE
 import time
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -21,12 +22,20 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 if not TOKEN:
     raise ValueError("Token do Telegram não encontrado. Certifique-se de que a variável TELEGRAM_TOKEN está definida no arquivo .env")
 
-# Configuração de logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logger = logging.getLogger(__name__)
+# Função para configurar o logging com base no nível de debug
+def setup_logging(debug_level):
+    if debug_level == 1:
+        log_level = logging.DEBUG  # Mais detalhes nos logs
+    else:
+        log_level = logging.INFO  # Apenas informações principais
+
+    # Configura o logging
+    logging.basicConfig(
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        level=log_level
+    )
+    # Reduz o nível de logs da biblioteca httpx para evitar ruído
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
 # Configura Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -38,7 +47,7 @@ sheet = client.open("NFCes").worksheet("DADOS")
 bot = telegram.Bot(token=TOKEN)
 
 # URL para "Aguardando Documento"
-IDLE_PAGE = 'data:text/html,<body style="background:black;color:white;text-align:center;font-family:Arial;"><h1>Aguardando Documento</h1></body>'
+# IDLE_PAGE já é importado do nfce_automation
 
 def calcular_insights(empresa, total, itens, is_sat):
     rows = sheet.get_all_values()[1:]
@@ -98,6 +107,7 @@ async def start(update, context):
     await update.message.reply_text("Olá! Eu sou o bot NFCe. Envie uma foto de um recibo com QR code ou digite a chave de 44 dígitos para começar!")
 
 async def handle_text(update, context):
+    debug_level = context.bot_data.get("debug_level", 0)  # Obtém o debug_level do contexto
     texto = update.message.text.strip()
     logging.debug(f"Texto recebido: {texto}")
     
@@ -117,7 +127,7 @@ async def handle_text(update, context):
 
     await update.message.reply_text("Processando sua chave... 🔍")
     try:
-        dados = processar_imagem(chave_manual=texto_sem_espacos, debug_level=1, from_bot=True)
+        dados = processar_imagem(chave_manual=texto_sem_espacos, debug_level=debug_level, from_bot=True)
         if not dados:
             logging.debug(f"Falha ao processar chave manual: {texto_sem_espacos}")
             await update.message.reply_text("Não consegui processar a chave. Verifique e tente novamente! 😕")
@@ -173,6 +183,7 @@ async def handle_text(update, context):
             logging.error(f"Erro ao redirecionar browser: {str(e)}")
 
 async def handle_photo(update, context):
+    debug_level = context.bot_data.get("debug_level", 0)  # Obtém o debug_level do contexto
     user = update.message.from_user
     photo_file = await update.message.photo[-1].get_file()
     photo_path = f"recibos/{user.id}_{int(time.time())}.jpg"
@@ -191,7 +202,7 @@ async def handle_photo(update, context):
 
     try:
         logging.debug(f"Processing image: {photo_path}")
-        dados = processar_imagem(caminho_imagem=photo_path, debug_level=1, from_bot=True)
+        dados = processar_imagem(caminho_imagem=photo_path, debug_level=debug_level, from_bot=True)
         if not dados:
             logging.debug(f"Failed to process {photo_path}")
             await update.message.reply_text("Não consegui extrair o QR code. Tente outra imagem ou envie a chave de 44 dígitos! 😕")
@@ -247,14 +258,19 @@ async def handle_photo(update, context):
             logging.error(f"Erro ao redirecionar browser: {str(e)}")
 
 def main():
-    debug_level = 0
-    if len(sys.argv) > 1 and sys.argv[1].startswith("debug="):
-        try:
-            debug_level = int(sys.argv[1].split("=")[1])
-            logging.info(f"Debug mode set to: {debug_level}")
-        except ValueError:
-            print("Argumento debug inválido. Usando debug=0.")
-    
+    # Configura o parser de argumentos
+    parser = argparse.ArgumentParser(description="Bot do Telegram para consulta de recibos NFCe e SAT")
+    parser.add_argument(
+        "--debug",
+        type=int,
+        choices=[0, 1],
+        default=0,
+        help="Nível de debug: 0 para INFO (padrão), 1 para DEBUG"
+    )
+    args = parser.parse_args()
+
+    # Configura o logging com base no argumento --debug
+    debug_level = args.debug
     setup_logging(debug_level)
 
     try:
@@ -266,6 +282,10 @@ def main():
         logging.error(f"Erro ao inicializar browser: {str(e)}")
 
     application = Application.builder().token(TOKEN).build()
+
+    # Armazena o debug_level no contexto do bot para uso nas funções handle_text e handle_photo
+    application.bot_data["debug_level"] = debug_level
+
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
